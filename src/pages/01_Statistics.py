@@ -6,8 +6,8 @@ from data_utils import (
     build_ie_opponent_strength, attach_opponent_strength,
 )
 
-IE_FILE  = "data/IE_Basketball_Dataset.xlsx"
-NBA_FILE = "data/NBA_Season_2024_25_Dataset.xlsx"
+IE_FILE  = "src/data/IE_Basketball_Dataset.xlsx"
+NBA_FILE = "src/data/NBA_Season_2024_25_Dataset.xlsx"
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

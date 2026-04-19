@@ -16,8 +16,8 @@ from data_utils import (
 
 warnings.filterwarnings("ignore")
 
-NBA_FILE = "data/NBA_Season_2024_25_Dataset.xlsx"
-IE_FILE  = "data/IE_Basketball_Dataset.xlsx"
+NBA_FILE = "src/data/NBA_Season_2024_25_Dataset.xlsx"
+IE_FILE  = "src/data/IE_Basketball_Dataset.xlsx"
 
 
 def train_logistic(nba: pd.DataFrame):
