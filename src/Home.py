@@ -6,18 +6,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# ── global CSS ────────────────────────────────────────────────────────────────
-st.markdown(
-    """
-    <style>
-        [data-testid="stSidebarHeader"] { display: none; }
-        [data-testid="stSidebar"] > div:first-child { padding-top: 10px; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# ── sidebar title ─────────────────────────────────────────────────────────────
+#── sidebar title ─────────────────────────────────────────────────────────────
 st.sidebar.markdown(
     "<div style='font-size: 22px; font-weight: bold; padding: 10px 0px;'>🏀 IE Basketball</div>",
     unsafe_allow_html=True,
