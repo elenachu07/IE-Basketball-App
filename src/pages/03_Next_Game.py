@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import streamlit as st
+
+# Machine learning tools
 from datetime import date, timedelta
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression, LinearRegression
@@ -8,6 +10,7 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 import warnings
 
+# Import data loading and feature engineering functions
 from data_utils import (
     load_nba, load_ie, engineer_features,
     build_ie_opponent_strength, attach_opponent_strength,
@@ -16,34 +19,49 @@ from data_utils import (
 
 warnings.filterwarnings("ignore")
 
+# Dataset file paths
 NBA_FILE = "src/data/NBA_Season_2024_25_Dataset.xlsx"
 IE_FILE  = "src/data/IE_Basketball_Dataset.xlsx"
 
 
-# ── model training (same as predictions.py) ───────────────────────────────────
+# ── model training ───────────────────────────────────
 
 @st.cache_resource
 def load_and_train():
+    """
+    Load data, engineer features, and train all models once.
+    Cached to avoid retraining every time the app reruns.
+    """
+
+    # Laod datasets
     nba_raw = load_nba(NBA_FILE)
     ie_raw  = load_ie(IE_FILE)
 
+    # Feature engineering
     nba = engineer_features(nba_raw, "NBA")
     ie  = engineer_features(ie_raw,  "IE")
 
+    # Build opponent strength IE data
     opp_profile = build_ie_opponent_strength(ie)
+
+    # Attach opponent features to both datasets
     nba = attach_opponent_strength(nba, opp_profile)
     ie  = attach_opponent_strength(ie,  opp_profile)
 
+    # Prepare training data
     X_nba = nba[FEATURE_COLS].fillna(0)
     y_cls = nba["result"]
     y_reg = nba["point_diff"]
 
+    # Split data
     X_train, X_test, y_cls_train, _ = train_test_split(X_nba, y_cls, test_size=0.2, random_state=42)
     _, _,            y_reg_train, _ = train_test_split(X_nba, y_reg, test_size=0.2, random_state=42)
 
+    # Scale features for linear/logistic models
     scaler = StandardScaler()
     X_tr_sc = scaler.fit_transform(X_train)
 
+    # Train models
     log_model = LogisticRegression(max_iter=1000, random_state=42)
     log_model.fit(X_tr_sc, y_cls_train)
 
@@ -61,8 +79,8 @@ def load_and_train():
 
 def _team_recent_state(ie: pd.DataFrame, team: str) -> dict:
     """
-    Extract rolling stats from the last 5 games for a given team.
-    These mirror exactly what engineer_features computes historically.
+    Extract recent performance metrics from last 5 games
+    Mimics rolling features used during training
     """
     g = ie[ie["team"] == team].sort_values("date")
     last5 = g.tail(5)
@@ -78,26 +96,29 @@ def _team_recent_state(ie: pd.DataFrame, team: str) -> dict:
     }
 
 
-def _build_feature_row(
-    home: int,
-    rest_days: float,
-    team_state: dict,
-    opp_row: pd.Series,
-) -> pd.DataFrame:
-    """Assemble a single-row DataFrame with all FEATURE_COLS."""
+def _build_feature_row( home: int, rest_days: float, team_state: dict, opp_row: pd.Series, ) -> pd.DataFrame:
+    """
+    Build a single feature row for prediction using same structure as training data
+    """
     row = {
         "home":                home,
         "rest_days":           rest_days,
         "back_to_back":        int(rest_days == 1),
+
+        # Team features
         "team_avg_point_diff": team_state["team_avg_point_diff"],
         "team_avg_scored":     team_state["team_avg_scored"],
         "team_win_rate":       team_state["team_win_rate"],
         "recent_form":         team_state["recent_form"],
         "last_game_result":    team_state["last_game_result"],
+
+        # Opponent features
         "opp_win_rate":        opp_row["opp_win_rate"],
         "opp_avg_point_diff":  opp_row["opp_avg_point_diff"],
         "opp_avg_scored":      opp_row["opp_avg_scored"],
         "opp_recent_form":     0.5,   # unknown for future opponent
+
+        # Interaction features
         "strength_diff":       team_state["team_avg_point_diff"] - opp_row["opp_avg_point_diff"],
         "scoring_diff":        team_state["team_avg_scored"]     - opp_row["opp_avg_scored"],
     }
@@ -106,8 +127,7 @@ def _build_feature_row(
 
 def _predict_score(team_state: dict, opp_row: pd.Series, pred_point_diff: float) -> tuple[int, int]:
     """
-    Estimate the actual scoreline from the predicted point differential.
-    Uses the team's season avg scored as the anchor, then derives opponent score.
+    Estimate final score from predicted point difference
     """
     team_score = round(team_state["avg_scored"])
     opp_score  = round(team_score - pred_point_diff)
@@ -120,8 +140,10 @@ def main():
     st.title("Next Game Prediction")
     st.write("Predict the outcome of IE Basketball's next game.")
 
+    # Load trained models and data
     log_model, rf_model, lin_model, rf_reg, scaler, ie, opp_profile = load_and_train()
 
+    # Prepare dropdown options
     all_opponents = sorted(opp_profile["opponent"].str.strip().unique().tolist())
     teams         = sorted(ie["team"].unique().tolist())
 
@@ -136,7 +158,7 @@ def main():
         opponent     = st.selectbox("Opponent", all_opponents + ["New opponent (not in history)"])
         game_date    = st.date_input("Game Date", value=date.today())
 
-    # rest days: calculate from last known game or let user override
+    # Calculate rest days automatically
     team_state    = _team_recent_state(ie, team)
     last_date     = team_state["last_game_date"]
 
@@ -160,7 +182,7 @@ def main():
     opp_match = opp_profile[opp_profile["opponent"].str.strip() == opponent_clean]
 
     if len(opp_match) == 0:
-        # unknown opponent → use league average
+        # Use average opponent if not in dataset
         opp_row = opp_profile[["opp_win_rate", "opp_avg_point_diff", "opp_avg_scored"]].mean()
         st.info("Opponent not in history — using league average strength.")
     else:
@@ -171,16 +193,18 @@ def main():
     X         = _build_feature_row(home, rest_days, team_state, opp_row)
     X_scaled  = scaler.transform(X)
 
+    # Classification predictions
     log_prob      = log_model.predict_proba(X_scaled)[0, 1]
     rf_prob       = rf_model.predict_proba(X)[0, 1]
     avg_win_prob  = (log_prob + rf_prob) / 2
 
     log_pred      = log_model.predict(X_scaled)[0]
     rf_pred       = rf_model.predict(X)[0]
-    # ensemble: both must agree for high-confidence prediction
+
     final_result  = 1 if avg_win_prob >= 0.5 else 0
     result_label  = "Win" if final_result == 1 else "Loss"
 
+    # Regression predictions
     lin_diff      = lin_model.predict(X_scaled)[0]
     rf_diff       = rf_reg.predict(X)[0]
     avg_diff      = (lin_diff + rf_diff) / 2
@@ -191,7 +215,7 @@ def main():
     st.divider()
     st.subheader("Prediction")
 
-    # headline result
+    # Headline result
     color = "🟢" if final_result == 1 else "🔴"
     st.markdown(f"## {color} Predicted Result: **{result_label}**")
 
@@ -202,11 +226,11 @@ def main():
     m3.metric(f"{team} Score",      team_score)
     m4.metric(f"{opponent_clean} Score", opp_score)
 
-    # confidence bar
+    # Confidence bar
     st.markdown("**Win Probability**")
     st.progress(float(avg_win_prob))
 
-    # model breakdown
+    # Model breakdown
     with st.expander("Model breakdown"):
         st.markdown(f"""
         | Model | Prediction | Win Probability |
@@ -219,7 +243,7 @@ def main():
         st.markdown("**Features used for this prediction:**")
         st.dataframe(X.T.rename(columns={0: "value"}).round(3), use_container_width=True)
 
-    # context
+    # Context display
     with st.expander("Team context (last 5 games)"):
         last5 = ie[ie["team"] == team].sort_values("date").tail(5)
         st.dataframe(
@@ -230,4 +254,5 @@ def main():
         )
 
 
+# Run app
 main()

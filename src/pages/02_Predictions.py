@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import streamlit as st
+
+# Machine learning models and tools
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -8,6 +10,7 @@ from sklearn.metrics import accuracy_score, mean_squared_error, r2_score
 from sklearn.preprocessing import StandardScaler
 import warnings
 
+# Import data processing and feature engineering functions
 from data_utils import (
     load_nba, load_ie, engineer_features,
     build_opponent_strength, attach_opponent_strength,
@@ -16,29 +19,45 @@ from data_utils import (
 
 warnings.filterwarnings("ignore")
 
+#File paths for datasets
 NBA_FILE = "src/data/NBA_Season_2024_25_Dataset.xlsx"
 IE_FILE  = "src/data/IE_Basketball_Dataset.xlsx"
 
 
 def train_logistic(nba: pd.DataFrame):
+    """
+    Train a logistic regression model to predict win/loss
+    Uses a random train/test split
+    """
+
+    # Select features and target variable
     X = nba[FEATURE_COLS].fillna(0)
     y = nba["result"]
-
+    
+    # Split data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
 
+    #Standardize features for logistic regression
     scaler = StandardScaler()
     X_tr = scaler.fit_transform(X_train)
     X_te = scaler.transform(X_test)
 
+    #Train model
     model = LogisticRegression(max_iter=1000, random_state=42)
     model.fit(X_tr, y_train)
 
+    #Return model, scaler, and accuracy metrics
     return model, scaler, accuracy_score(y_train, model.predict(X_tr)), accuracy_score(y_test, model.predict(X_te))
 
 
 def train_random_forest(nba: pd.DataFrame):
+    """
+    Train a Random Forest classifier using a time-based split
+    This avoids data leakage by training on past games and testing on future games
+    """
+    #Sort by date for realistic time-based split
     nba = nba.sort_values("date").reset_index(drop=True)
 
     split_idx = int(len(nba) * 0.8)
@@ -52,6 +71,7 @@ def train_random_forest(nba: pd.DataFrame):
     X_test = test_df[FEATURE_COLS].fillna(0)
     y_test = test_df["result"]
 
+    # Train Random Forest model
     model = RandomForestClassifier(
         n_estimators=200,
         max_depth=6,
@@ -59,12 +79,16 @@ def train_random_forest(nba: pd.DataFrame):
     )
     model.fit(X_train, y_train)
 
+    #Compute accuracy
     train_acc = accuracy_score(y_train, model.predict(X_train))
     test_acc = accuracy_score(y_test, model.predict(X_test))
 
     return model, train_acc, test_acc
 
 def train_linear(nba: pd.DataFrame):
+    """
+    Train a Linear Regression model to predict point difference
+    """
     nba = nba.sort_values("date").reset_index(drop=True)
 
     split_idx = int(len(nba) * 0.8)
@@ -78,6 +102,7 @@ def train_linear(nba: pd.DataFrame):
     X_test = test_df[FEATURE_COLS].fillna(0)
     y_test = test_df["point_diff"]
 
+    #Scale features for regression
     scaler = StandardScaler()
     X_tr = scaler.fit_transform(X_train)
     X_te = scaler.transform(X_test)
@@ -85,6 +110,7 @@ def train_linear(nba: pd.DataFrame):
     model = LinearRegression()
     model.fit(X_tr, y_train)
 
+    # Evalue model performance
     train_r2 = r2_score(y_train, model.predict(X_tr))
     test_r2 = r2_score(y_test, model.predict(X_te))
     rmse = np.sqrt(mean_squared_error(y_test, model.predict(X_te)))
@@ -93,15 +119,25 @@ def train_linear(nba: pd.DataFrame):
 
 
 def predict_ie(ie, log_model, log_scaler, rf_model, lin_model, lin_scaler) -> pd.DataFrame:
+    """
+    Apply trained models to IE dataset to generate predictions
+    """
+    #Prepare feature matrix
     X      = ie[FEATURE_COLS].fillna(0)
     X_sc   = log_scaler.transform(X)
 
+    #Logistic Regression predictions
     log_pred   = log_model.predict(X_sc)
     log_prob   = log_model.predict_proba(X_sc)[:, 1]
+
+    # Random forest predictions
     rf_pred    = rf_model.predict(X)
     rf_prob    = rf_model.predict_proba(X)[:, 1]
+
+    # Linear regression (point difference)
     pred_diff  = lin_model.predict(lin_scaler.transform(X))
 
+    #Build results table
     results = ie[["date", "team", "opponent", "result"]].copy()
     results["actual"]           = results["result"].map({1: "Win", 0: "Loss"})
     results["logistic_pred"]    = pd.Series(log_pred).map({1: "Win", 0: "Loss"}).values
@@ -109,6 +145,8 @@ def predict_ie(ie, log_model, log_scaler, rf_model, lin_model, lin_scaler) -> pd
     results["rf_pred"]          = pd.Series(rf_pred).map({1: "Win", 0: "Loss"}).values
     results["rf_prob"]          = np.round(rf_prob, 3)
     results["pred_pt_diff"]     = np.round(pred_diff, 1)
+
+    #Mark correct predictions
     results["log_correct"]      = np.where(results["result"] == log_pred, "✓", "✗")
     results["rf_correct"]       = np.where(results["result"] == rf_pred,  "✓", "✗")
 
@@ -116,19 +154,26 @@ def predict_ie(ie, log_model, log_scaler, rf_model, lin_model, lin_scaler) -> pd
 
 
 def main():
+    """
+    Main function for prediction dashboard
+    """
     st.title("Predictions")
     st.write("NBA-trained model predictions for IE Basketball")
 
+    # Load datasets
     nba_raw = load_nba(NBA_FILE)
     ie_raw  = load_ie(IE_FILE)
 
+    # Feature engineering
     nba = engineer_features(nba_raw, "NBA")
     ie  = engineer_features(ie_raw,  "IE")
 
+    #Build and attach opponent strenght from NBA data
     opp_profile = build_opponent_strength(nba)
     nba = attach_opponent_strength(nba, opp_profile)
     ie  = attach_opponent_strength(ie,  opp_profile)
 
+    # Train models
     log_model, log_scaler, log_tr, log_te          = train_logistic(nba)
     rf_model,  rf_tr, rf_te                        = train_random_forest(nba)
     lin_model, lin_scaler, lin_tr, lin_te, lin_rmse = train_linear(nba)
@@ -171,6 +216,7 @@ def main():
     st.subheader("IE Prediction Results")
     st.dataframe(results.drop(columns="result"), use_container_width=True)
 
+    # Accuracy comparison
     st.subheader("Accuracy Summary")
     log_acc = (results["result"] == results["logistic_pred"].map({"Win": 1, "Loss": 0})).mean()
     rf_acc  = (results["result"] == results["rf_pred"].map({"Win": 1, "Loss": 0})).mean()
