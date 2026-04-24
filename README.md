@@ -1,6 +1,6 @@
-# Basketball Statistics App
+# IE Basketball Statistics and Analysis App
 
-This project is a Streamlit application designed to display statistics and predictions related to basketball match results. It utilizes datasets from the NBA and other basketball leagues to provide insights and analytics.
+This project is a data analysis and machine learning application designed to analyze and predict the performance of the IE University Men's and Women's basketball teams. The system uses real IE match data and utilizes datasets from the NBA 2024-2025 to generate predictions.
 
 ## Project Structure
 
@@ -23,30 +23,43 @@ basketball-stats-app
 └── README.md                 # Documentation for the project
 ```
 
-## Setup Instructions
+## 🚀 Features
+
+- 📊 **Statistics Dashboard**
+
+  - Team records (wins/losses)
+  - Scoring averages
+  - Home vs Away performance
+  - Rest days
+  - Opponent strength analysis
+  - Men vs Women comparison
+
+- 🤖 **Prediction System**
+
+  - Predict match outcome (Win/Loss)
+  - Estimate win probability
+  - Predict point difference
+  - Compare Logistic Regression and Random Forest models
+
+- 🔮 **Next Game Prediction**
+  - Simulate future match outcomes based on input conditions
+
+## How to run the project
 
 1. Clone the repository:
+
    ```
-   git clone <repository-url>
+   git clone https://github.com/elenachu07/IE-Basketball-App.git
    cd basketball-stats-app
    ```
 
 2. Install the required packages:
+
    ```
    pip install -r requirements.txt
    ```
 
 3. Run the Streamlit application:
    ```
-   streamlit run src/app.py
+   streamlit run src/Home.py
    ```
-
-## Usage
-
-- Navigate to the home page for an overview of the application.
-- Visit the statistics page to view various basketball match statistics.
-- Use the predictions page to make predictions based on the loaded datasets.
-
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or features you'd like to add.
