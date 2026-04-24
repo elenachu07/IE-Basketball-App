@@ -6,20 +6,22 @@ This project is a data analysis and machine learning application designed to ana
 
 ```
 basketball-stats-app
+├── .devcontainer
+    ├── devcontainer.json      #Defines a development environment for the project so it runs the same everywhere
 ├── src
-│   ├── app.py                # Main entry point for the Streamlit application
+│   ├── Home.py                # Main entry point for the Streamlit application
+|   ├── data_utils.py          #Functions for loading and processing basketball data
 │   ├── pages
-│   │   ├── home.py           # Home page with an introduction to the app
-│   │   ├── statistics.py      # Page displaying basketball match statistics
-│   │   └── predictions.py      # Page for making predictions based on match data
-│   ├── utils
-│   │   └── prediction.py      # Functions for loading and processing basketball data
+│   │   ├── 01_Statistics.py           # Home page with an introduction to the app
+│   │   ├── 02_Predictions.py      # Page displaying basketball match statistics
+│   │   └── 03_Next_Game.py      # Page for making predictions based on match data
 │   └── data
 │       ├── NBA_Season_2024_25_Dataset.xlsx  # NBA match results dataset
 │       └── IE_Basketball_Dataset.xlsx        # Additional basketball match results dataset
-├── requirements.txt          # Required Python packages for the project
 ├── .streamlit
 │   └── config.toml          # Configuration settings for the Streamlit app
+├── .gitattributes            #Rules for how Git should treat files in repository
+├── requirements.txt          # Required Python packages for the project
 └── README.md                 # Documentation for the project
 ```
 
