@@ -6,8 +6,6 @@ This project is a data analysis and machine learning application designed to ana
 
 ```
 basketball-stats-app
-├── .devcontainer
-    ├── devcontainer.json      #Defines a development environment for the project so it runs the same everywhere
 ├── src
 │   ├── Home.py                # Main entry point for the Streamlit application
 |   ├── data_utils.py          #Functions for loading and processing basketball data
