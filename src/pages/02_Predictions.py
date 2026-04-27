@@ -212,7 +212,6 @@ def main():
 
     # ── IE predictions ────────────────────────────────────────────────────────
     results = predict_ie(ie, log_model, log_scaler, rf_model, lin_model, lin_scaler)
-
     st.subheader("IE Prediction Results")
     st.dataframe(results.drop(columns="result"), use_container_width=True)
 
